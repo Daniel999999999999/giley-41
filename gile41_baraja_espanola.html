@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0d4b34">
+<title>Gilé 41</title>
+<style>
+:root{--felt:#0d4b34;--felt2:#126141;--gold:#f6c945;--red:#e95d5d;--ink:#142016}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:linear-gradient(#0b3828,#06241a);color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+.app{max-width:900px;margin:auto;padding:env(safe-area-inset-top) 12px env(safe-area-inset-bottom)}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 4px}
+.logo{font-size:27px;font-weight:900}.chips{font-weight:800}
+.panel{background:rgba(18,97,65,.92);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:13px;margin:10px 0;box-shadow:0 8px 22px #0003}
+.status{text-align:center;font-weight:900;font-size:18px}.sub{text-align:center;opacity:.8;font-size:13px;margin-top:3px}
+.players{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.player{background:#0d4b34;border-radius:15px;padding:10px;min-height:118px}
+.player.active{outline:3px solid var(--gold)} .player.out{opacity:.45}
+.phead{display:flex;justify-content:space-between;gap:5px;font-weight:800}.bet{font-size:12px;opacity:.8}
+.mini{display:flex;gap:4px;margin-top:8px;overflow:hidden}
+.card{width:58px;height:82px;background:#fff;color:var(--ink);border-radius:9px;padding:6px;display:flex;flex-direction:column;justify-content:space-between;font-weight:900;box-shadow:0 3px 8px #0004;flex:0 0 auto}
+.card.red{color:#c52929}.card .suit{font-size:21px;align-self:center}.back{background:linear-gradient(135deg,#193e77,#285fa8);color:white;align-items:center;justify-content:center;font-size:24px}
+.meTitle{font-weight:900;margin-bottom:8px}.hand{display:flex;justify-content:center;gap:7px;flex-wrap:wrap}.touch{border-radius:11px}.touch.sel{outline:4px solid var(--gold);transform:translateY(-8px)}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.actions input{width:100%;padding:13px;border-radius:12px;border:0;font-size:18px;text-align:center}
+button{border:0;border-radius:12px;padding:13px 10px;font-weight:900;font-size:16px;cursor:pointer}
+.gold{background:var(--gold);color:#17200e}.redbtn{background:var(--red);color:#fff}.dark{background:#e9ece9;color:#111}.wide{grid-column:1/-1}
+.log{max-height:170px;overflow:auto;font-size:13px;line-height:1.45}.rules{font-size:13px;opacity:.85;line-height:1.45}
+.hidden{display:none!important}
+@media(min-width:700px){.players{grid-template-columns:repeat(4,1fr)}.card{width:66px;height:92px}}
+
+.card.spanish{position:relative;border:1px solid #d7d7d7;overflow:hidden;justify-content:flex-start}
+.card.spanish .corner{font-size:18px;line-height:1}
+.card.spanish .suit{font-size:30px;line-height:1;margin-top:2px}
+.card.spanish .cardname{font-size:9px;text-align:center;text-transform:uppercase;letter-spacing:.2px;margin-top:3px}
+.card.spanish .bottom{position:absolute;right:6px;bottom:5px;transform:rotate(180deg)}
+.card.back{border:3px solid #e8e8e8;background:repeating-linear-gradient(45deg,#a31f2b 0,#a31f2b 6px,#f4d8b0 6px,#f4d8b0 10px);color:white;align-items:center;justify-content:center}
+.backPattern{font-size:28px;text-shadow:0 1px 2px #000}
+.card.back small{font-size:7px;background:#8d1823;padding:2px 4px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="app">
+<header><div class="logo">🃏 Gilé 41 <span style="font-size:13px;opacity:.75">· Baraja española</span></div><div class="chips" id="chips">Fichas: 100</div></header>
+
+<section class="panel">
+  <div class="status" id="status">Preparando partida…</div>
+  <div class="sub" id="sub">Bote: 0 · Mano: Tú</div>
+</section>
+
+<section class="panel"><div class="players" id="players"></div></section>
+
+<section class="panel">
+  <div class="meTitle">Tus cartas</div>
+  <div class="hand" id="hand"></div>
+  <div class="sub" id="hint">Cuando llegue el descarte, toca las cartas que quieras cambiar.</div>
+</section>
+
+<section class="panel">
+  <div class="actions">
+    <input id="bet" type="number" min="1" value="5" inputmode="numeric" aria-label="Cantidad a apostar">
+    <button class="gold" id="betBtn">Apostar</button>
+    <button class="redbtn" id="foldBtn">Retirarme</button>
+    <button class="gold wide hidden" id="discardBtn">Descartar seleccionadas</button>
+    <button class="dark wide" id="newBtn">Nueva partida</button>
+  </div>
+  <div class="sub">Si te retiras, pierdes lo apostado y pasa al bote.</div>
+</section>
+
+<section class="panel"><b>Registro</b><div class="log" id="log"></div></section>
+<section class="panel rules"><b>Reglas de esta versión</b><br>
+2 cartas → apuestas → 2 cartas → apuestas → descarte de las que quieras. 
+As = 11 · 7 = 7 · resto = 10. Se suman las cartas del mismo palo. 
+Gana la puntuación más cercana a 41; en empate, gana el jugador que vaya de mano.
+</section>
+</div>
+
+<script>
+const SUITS=[["Oros","♦",true],["Copas","♥",true],["Espadas","♠",false],["Bastos","♣",false]];
+const RANKS=[["1",11,"As"],["2",10,"Dos"],["3",10,"Tres"],["4",10,"Cuatro"],["5",10,"Cinco"],["6",10,"Seis"],["7",7,"Siete"],["S",10,"Sota"],["C",10,"Caballo"],["R",10,"Rey"]];
+let deck=[], ps=[], dealer=0, phase=0, turn=0, pot=0, roundActions=0, selected=new Set(), finished=false;
+
+function mkDeck(){let d=[]; for(let s=0;s<4;s++) for(const [r,v,n] of RANKS)d.push({s,r,v,n,id:d.length}); return d.sort(()=>Math.random()-.5)}
+function addLog(t){const el=document.getElementById("log"); el.innerHTML="<div>"+t+"</div>"+el.innerHTML}
+function alive(){return ps.filter(p=>p.in)}
+function nextIndex(i){for(let k=1;k<=ps.length;k++){let j=(i+k)%ps.length;if(ps[j].in)return j}return -1}
+function val(hand){let sums=[0,0,0,0];hand.forEach(c=>sums[c.s]+=c.v);return Math.max(...sums)}
+function card(c,back=false){
+ if(back)return '<div class="card back"><div class="backPattern">🃏</div><small>ESPAÑOLA</small></div>';
+ let s=SUITS[c.s];
+ let label=c.r==="A"?"1":(c.r==="S"?"S":(c.r==="C"?"C":(c.r==="R"?"R":c.r)));
+ let name=c.n||"";
+ return `<div class="card spanish ${s[2]?"red":""}" title="${name} de ${s[0]}">
+   <div class="corner">${label}</div>
+   <div class="suit">${s[1]}</div>
+   <div class="cardname">${name}</div>
+   <div class="corner bottom">${label}</div>
+ </div>`;
+}
+function deal(n){for(let x=0;x<n;x++)for(const p of ps)if(p.in)p.hand.push(deck.pop())}
+function resetBets(){ps.forEach(p=>p.bet=0);roundActions=0}
+function start(){
+ deck=mkDeck(); pot=0; phase=0; selected.clear(); finished=false; dealer=Math.floor(Math.random()*4);
+ ps=["Tú","Manolo","Pepe","Juan"].map((name,i)=>({name,hand:[],in:true,bet:0,chips:100,ai:i>0}));
+ turn=dealer; deal(2); addLog(`🃏 Repartidas 2 cartas. Empieza ${ps[turn].name}.`);
+ render(); if(turn!==0)setTimeout(aiTurn,500);
+}
+function render(){
+ const phaseName=phase===0?"Primera ronda de apuestas":phase===1?"Segunda ronda de apuestas":"Descarte";
+ document.getElementById("status").textContent=finished?"Partida terminada":phaseName;
+ document.getElementById("sub").textContent=`Bote: ${pot} · Mano: ${ps[dealer].name} · Turno: ${finished?"—":ps[turn].name}`;
+ document.getElementById("chips").textContent=`Fichas: ${ps[0].chips}`;
+ document.getElementById("players").innerHTML=ps.map((p,i)=>`<div class="player ${i===turn&&!finished?"active":""} ${!p.in?"out":""}">
+ <div class="phead"><span>${p.name}${i===dealer?" 🃏":""}</span><span class="bet">${p.in?"Apuesta "+p.bet:"RETIRADO"}</span></div>
+ <div class="mini">${p.in?(i===0||phase===2?p.hand.map(c=>card(c)).join(""):p.hand.map(()=>card(null,true)).join("")):""}</div>
+ ${phase===2&&p.in?`<div class="score">Puntos: <b>${val(p.hand)}</b></div>`:""}
+ </div>`).join("");
+ document.getElementById("hand").innerHTML=ps[0].hand.map((c,i)=>`<div class="touch ${selected.has(i)?"sel":""}" data-i="${i}">${card(c)}</div>`).join("");
+ document.querySelectorAll(".touch").forEach(e=>e.onclick=()=>{if(phase===2&&!finished){let i=+e.dataset.i;selected.has(i)?selected.delete(i):selected.add(i);render()}});
+ const userTurn=turn===0&&!finished;
+ document.getElementById("betBtn").disabled=!userTurn||phase>=2;
+ document.getElementById("foldBtn").disabled=!userTurn||phase>=2;
+ document.getElementById("discardBtn").classList.toggle("hidden",!(phase===2&&userTurn));
+ document.getElementById("discardBtn").disabled=selected.size===0;
+ document.getElementById("hint").textContent=phase===2?"Toca las cartas que quieras cambiar y pulsa «Descartar seleccionadas».":"Espera tu turno para apostar o retirarte.";
+}
+function actEnd(){
+ if(alive().length===1){finishHand();return}
+ if(roundActions>=alive().length){
+   if(phase===0){phase=1;resetBets();deal(2);turn=dealer;addLog("🃏 Se reparten otras 2 cartas. Segunda ronda de apuestas.");}
+   else if(phase===1){phase=2;turn=dealer;addLog("🔄 Terminan las apuestas. Empieza el descarte.");}
+   render();if(turn!==0)setTimeout(aiTurn,500);return;
+ }
+ turn=nextIndex(turn);render();if(turn!==0)setTimeout(aiTurn,500);
+}
+function bet(){
+ if(turn!==0||phase>=2)return;
+ let n=Math.floor(Number(document.getElementById("bet").value));
+ if(!n||n<1||n>ps[0].chips){alert("Pon una apuesta válida.");return}
+ ps[0].chips-=n;ps[0].bet+=n;pot+=n;roundActions++;addLog(`Tú apuestas ${n}.`);actEnd();
+}
+function fold(){if(turn!==0||phase>=2)return;ps[0].in=false;roundActions++;addLog("Tú te retiras y pierdes lo apostado.");actEnd()}
+function aiTurn(){
+ if(finished||turn===0)return;
+ const p=ps[turn]; if(!p.in){actEnd();return}
+ if(phase<2){
+   const s=val(p.hand);let chance=s>=38?.9:s>=34?.7:.45;
+   if(Math.random()>chance){p.in=false;roundActions++;addLog(`${p.name} se retira.`)}
+   else{let n=Math.min(p.chips,Math.max(1,Math.floor(3+Math.random()*8)));p.chips-=n;p.bet+=n;pot+=n;roundActions++;addLog(`${p.name} apuesta ${n}.`)}
+   actEnd();
+ }else{
+   // AI keeps the best suit and changes the rest, usually no more than 2 cards.
+   let sums=[0,0,0,0];p.hand.forEach(c=>sums[c.s]+=c.v);let keep=sums.indexOf(Math.max(...sums));
+   let idx=p.hand.map((c,i)=>c.s===keep?-1:i).filter(i=>i>=0);
+   idx=idx.sort(()=>Math.random()-.5).slice(0,Math.min(2,idx.length)).sort((a,b)=>b-a);
+   idx.forEach(i=>p.hand.splice(i,1));idx.forEach(()=>p.hand.push(deck.pop()));
+   addLog(`${p.name} hace su descarte.`);
+   turn=nextIndex(turn); if(turn===0){render()} else setTimeout(aiTurn,500);
+   if(alive().every(p=>p.hand.length===4))finishHand();
+ }
+}
+function discard(){
+ if(turn!==0||phase!==2||selected.size===0)return;
+ const idx=[...selected].sort((a,b)=>b-a);idx.forEach(i=>ps[0].hand.splice(i,1));idx.forEach(()=>ps[0].hand.push(deck.pop()));
+ addLog(`Tú cambias ${idx.length} carta${idx.length===1?"":"s"}.`);selected.clear();
+ turn=nextIndex(turn);
+ if(alive().every(p=>p.hand.length===4)){finishHand();return}
+ render();if(turn!==0)setTimeout(aiTurn,500);
+}
+function finishHand(){
+ finished=true;phase=2;
+ const a=alive();let best=Math.max(...a.map(p=>val(p.hand)));
+ // tie broken by order from dealer: first alive encountered starting at dealer
+ let winner=null;for(let k=0;k<ps.length;k++){let i=(dealer+k)%ps.length;if(ps[i].in&&val(ps[i].hand)===best){winner=ps[i];break}}
+ winner.chips+=pot;addLog(`🏆 ${winner.name} gana con ${best} puntos y se lleva el bote de ${pot}.`);
+ turn=-1;render();
+}
+document.getElementById("betBtn").onclick=bet;
+document.getElementById("foldBtn").onclick=fold;
+document.getElementById("discardBtn").onclick=discard;
+document.getElementById("newBtn").onclick=start;
+start();
+</script>
+</body></html>
